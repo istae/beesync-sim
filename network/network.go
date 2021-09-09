@@ -2,12 +2,14 @@ package network
 
 import (
 	"encoding/json"
+	"fmt"
 	"math/rand"
+
+	"github.com/ethersphere/bee/pkg/swarm"
 )
 
 const (
-	oversaturation = 8
-	prefix         = 16
+	prefix = 6
 )
 
 type Network struct {
@@ -16,27 +18,24 @@ type Network struct {
 	trace *trace
 }
 
-type trace struct {
-	nodes []*Node
+type HandleFunc func(swarm.Address, *Node) error
+
+type NodeOptions struct {
+	PushHandle      HandleFunc
+	NodeConnections int
+	FailPercantage  float32
 }
 
-func (t *trace) Add(n *Node) {
-	t.nodes = append(t.nodes, n)
-}
-
-func NewNetwork(count, connections int) *Network {
+func NewNetwork(count int, o NodeOptions) *Network {
 
 	t := &trace{}
 
-	nodes := nodeBatch(count, t)
-	cpy := make([]*Node, count)
-	copy(cpy, nodes)
-
+	nodes := nodeBatch(count, t, o)
 	ids := make(map[string]int)
 
 	for i := 0; i < count; i++ {
-		subset := rndSubset(cpy, connections)
-		nodes[i].Add(subset...)
+		end := rand.Intn(len(nodes)-o.NodeConnections) + o.NodeConnections
+		nodes[i].Add(nodes[end-o.NodeConnections : end])
 		ids[nodes[i].overlay.ByteString()] = i
 	}
 
@@ -51,10 +50,10 @@ func (n *Network) RandNode() *Node {
 	return n.nodes[rand.Intn(len(n.nodes))]
 }
 
-func nodeBatch(count int, t *trace) []*Node {
+func nodeBatch(count int, t *trace, o NodeOptions) []*Node {
 	var ret = make([]*Node, 0, count)
 	for i := 0; i < count; i++ {
-		ret = append(ret, NewNode(t))
+		ret = append(ret, NewNode(t, o.PushHandle, false))
 	}
 	return ret
 }
@@ -83,6 +82,7 @@ type jTrace struct {
 	From   int    `json:"from"`
 	To     int    `json:"to"`
 	Arrows string `json:"arrows,omitempty"`
+	Label  string `json:"label,omitempty"`
 }
 
 func (net *Network) MarshallTrace() []byte {
@@ -97,6 +97,7 @@ func (net *Network) MarshallTrace() []byte {
 			From:   net.ids[from.overlay.ByteString()],
 			To:     net.ids[to.overlay.ByteString()],
 			Arrows: "to",
+			Label:  fmt.Sprintf("%d", i),
 		})
 	}
 

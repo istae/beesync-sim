@@ -6,27 +6,40 @@ import (
 	"math/rand"
 
 	"github.com/ethersphere/bee/pkg/swarm"
-	"github.com/ethersphere/bee/pkg/swarm/test"
 )
 
-var NodeError = errors.New("node fail")
+const (
+	oversaturation  = 20
+	depthSaturation = 4
+)
+
+var NodeErr = errors.New("node fail")
 
 type Node struct {
-	overlay swarm.Address
-	bins    [][]*Node
-	fail    bool
-	trace   *trace
+	overlay   swarm.Address
+	bins      [][]*Node
+	fail      bool
+	trace     *trace
+	handeFunc HandleFunc
 }
 
-func NewNode(t *trace) *Node {
+func NewNode(t *trace, h HandleFunc, fail bool) *Node {
 	return &Node{
-		overlay: test.RandomAddress(),
-		bins:    make([][]*Node, swarm.MaxBins),
-		trace:   t,
+		overlay:   RandAddress(),
+		bins:      make([][]*Node, swarm.MaxBins),
+		trace:     t,
+		handeFunc: h,
+		fail:      fail,
 	}
 }
 
-func (n *Node) Add(peers ...*Node) {
+func RandAddress() swarm.Address {
+	b := make([]byte, 32)
+	rand.Read(b)
+	return swarm.NewAddress(b)
+}
+
+func (n *Node) Add(peers []*Node) {
 	for _, peer := range peers {
 		po := swarm.Proximity(n.overlay.Bytes(), peer.overlay.Bytes())
 		if len(n.bins[po]) < oversaturation && !n.overlay.Equal(peer.overlay) {
@@ -35,25 +48,27 @@ func (n *Node) Add(peers ...*Node) {
 	}
 }
 
+func (n *Node) Depth() int {
+
+	for i, bin := range n.bins {
+		if len(bin) <= depthSaturation {
+			return i
+		}
+	}
+
+	return int(swarm.MaxPO)
+}
+
 func (n *Node) Push(addr swarm.Address) error {
 
 	n.trace.Add(n)
 	fmt.Println(n.overlay)
 
 	if n.fail {
-		return NodeError
+		return NodeErr
 	}
 
-	return defaultPushHandleFunc(addr, n)
-}
-
-func defaultPushHandleFunc(addr swarm.Address, base *Node) error {
-	closest := base.ClosestNode(addr)
-	if closest == base {
-		return nil
-	}
-
-	return closest.Push(addr)
+	return n.handeFunc(addr, n)
 }
 
 func (n *Node) ClosestNode(addr swarm.Address, skipNodes ...swarm.Address) *Node {
@@ -92,15 +107,4 @@ func (n *Node) ClosestNode(addr swarm.Address, skipNodes ...swarm.Address) *Node
 func closer(a, x, y swarm.Address) bool {
 	cmp, _ := swarm.DistanceCmp(a.Bytes(), x.Bytes(), y.Bytes())
 	return cmp == 1
-}
-
-func rndSubset(nodes []*Node, count int) []*Node {
-	if count >= len(nodes) {
-		return nodes
-	}
-	for i := 0; i < len(nodes); i++ {
-		j := rand.Intn(len(nodes))
-		nodes[i], nodes[j] = nodes[j], nodes[i]
-	}
-	return nodes[:count]
 }
