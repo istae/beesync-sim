@@ -1,0 +1,55 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+  <title>Network</title>
+  <script type="text/javascript" src="https://unpkg.com/vis-network/standalone/umd/vis-network.min.js"></script>
+  <script type="text/javascript" src="network-data.js"></script>
+  <script type="text/javascript" src="trace-data.js"></script>
+  <style type="text/css">
+    #mynetwork {
+      width: 1200px;
+      height: 800px;
+    }
+  </style>
+</head>
+
+<body>
+  <div id="mynetwork"></div>
+  <script type="text/javascript">
+
+
+    // create an array with nodes
+    var nodes = new vis.DataSet(JSON.parse(network));
+
+    // create an array with edges
+    var edges = new vis.DataSet(JSON.parse(trace));
+
+    // create a network
+    var container = document.getElementById("mynetwork");
+    var data = { nodes: nodes, edges: edges };
+
+    var options = {
+      nodes: {
+        shape: "dot",
+        scaling: {
+          label: {
+            min: 8,
+            max: 20,
+          },
+        },
+      },
+      layout: {
+        improvedLayout: false
+      }
+    };
+    var network = new vis.Network(container, data, options);
+
+    network.on("stabilizationIterationsDone", function () {
+      network.setOptions({ physics: false });
+    });
+
+  </script>
+</body>
+
+</html>
