@@ -30,7 +30,7 @@ func main() {
 	pprof.StartCPUProfile(f)
 	defer pprof.StopCPUProfile()
 
-	net := network.NewNetwork(75000, network.NodeOptions{
+	net := network.NewNetwork(100000, network.NodeOptions{
 		NodeConnections: 50000,
 		FailPercantage:  0,
 		PushHandle:      defaultPushHandleFunc,

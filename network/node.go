@@ -11,6 +11,7 @@ import (
 const (
 	oversaturation  = 20
 	depthSaturation = 4
+	depth           = 12
 )
 
 var NodeErr = errors.New("node fail")
@@ -41,6 +42,9 @@ func RandAddress() swarm.Address {
 
 func (n *Node) Add(peers []*Node) {
 	for _, peer := range peers {
+		if n.Depth() >= 12 {
+			return
+		}
 		po := swarm.Proximity(n.overlay.Bytes(), peer.overlay.Bytes())
 		if len(n.bins[po]) < oversaturation && !n.overlay.Equal(peer.overlay) {
 			n.bins[po] = append(n.bins[po], peer)
@@ -49,7 +53,6 @@ func (n *Node) Add(peers []*Node) {
 }
 
 func (n *Node) Depth() int {
-
 	for i, bin := range n.bins {
 		if len(bin) <= depthSaturation {
 			return i

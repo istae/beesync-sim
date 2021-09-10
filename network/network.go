@@ -4,6 +4,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"math/rand"
+	"sync"
 
 	"github.com/ethersphere/bee/pkg/swarm"
 )
@@ -33,11 +34,33 @@ func NewNetwork(count int, o NodeOptions) *Network {
 	nodes := nodeBatch(count, t, o)
 	ids := make(map[string]int)
 
-	for i := 0; i < count; i++ {
-		end := rand.Intn(len(nodes)-o.NodeConnections) + o.NodeConnections
-		nodes[i].Add(nodes[end-o.NodeConnections : end])
-		ids[nodes[i].overlay.ByteString()] = i
+	var mux sync.Mutex
+	var wg sync.WaitGroup
+
+	const parallel = 10
+	window := count / parallel
+
+	for i := 0; i < parallel; i++ {
+		wg.Add(1)
+
+		start := window * i
+		go func(index int, end int) {
+
+			defer wg.Done()
+
+			for i := index; i < end; i++ {
+				end := rand.Intn(len(nodes)-o.NodeConnections) + o.NodeConnections
+				nodes[i].Add(nodes[end-o.NodeConnections : end])
+
+				mux.Lock()
+				ids[nodes[i].overlay.ByteString()] = i
+				mux.Unlock()
+			}
+
+		}(start, start+window)
 	}
+
+	wg.Wait()
 
 	return &Network{
 		nodes: nodes,
