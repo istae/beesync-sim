@@ -24,6 +24,8 @@ func defaultPushHandleFunc(addr swarm.Address, base *network.Node) error {
 
 func main() {
 
+	now := time.Now()
+
 	rand.Seed(time.Now().UnixNano())
 
 	f, _ := os.Create("cpu.pprof")
@@ -47,6 +49,7 @@ func main() {
 	}
 
 	fmt.Printf("depth: %d\n", rndNode.Depth())
+	fmt.Printf("in %v\n", time.Since(now))
 
 	ioutil.WriteFile("vis/trace-data.js", []byte(fmt.Sprintf(`trace = '%s'`, net.MarshallTrace())), os.ModePerm)
 	ioutil.WriteFile("vis/network-data.js", []byte(fmt.Sprintf(`network = '%s'`, net.MarshallNetwork())), os.ModePerm)

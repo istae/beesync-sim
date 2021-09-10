@@ -37,7 +37,7 @@ func NewNetwork(count int, o NodeOptions) *Network {
 	var mux sync.Mutex
 	var wg sync.WaitGroup
 
-	const parallel = 10
+	const parallel = 8
 	window := count / parallel
 
 	for i := 0; i < parallel; i++ {

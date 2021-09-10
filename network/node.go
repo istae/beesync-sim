@@ -14,7 +14,7 @@ const (
 	depth           = 12
 )
 
-var NodeErr = errors.New("node fail")
+var ErrNode = errors.New("node fail")
 
 type Node struct {
 	overlay   swarm.Address
@@ -68,7 +68,7 @@ func (n *Node) Push(addr swarm.Address) error {
 	fmt.Println(n.overlay)
 
 	if n.fail {
-		return NodeErr
+		return ErrNode
 	}
 
 	return n.handeFunc(addr, n)
