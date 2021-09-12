@@ -2,7 +2,6 @@ package network
 
 import (
 	"errors"
-	"fmt"
 	"math/rand"
 
 	"github.com/ethersphere/bee/pkg/swarm"
@@ -11,7 +10,7 @@ import (
 const (
 	oversaturation  = 20
 	depthSaturation = 4
-	depth           = 12
+	depth           = 14
 )
 
 var ErrNode = errors.New("node fail")
@@ -20,11 +19,12 @@ type Node struct {
 	overlay   swarm.Address
 	bins      [][]*Node
 	fail      bool
-	trace     *trace
+	trace     *Trace
 	handeFunc HandleFunc
+	depth     int
 }
 
-func NewNode(t *trace, h HandleFunc, fail bool) *Node {
+func NewNode(t *Trace, h HandleFunc, fail bool) *Node {
 	return &Node{
 		overlay:   RandAddress(),
 		bins:      make([][]*Node, swarm.MaxBins),
@@ -42,7 +42,7 @@ func RandAddress() swarm.Address {
 
 func (n *Node) Add(peers []*Node) {
 	for _, peer := range peers {
-		if n.Depth() >= 12 {
+		if n.Depth() >= depth {
 			return
 		}
 		po := swarm.Proximity(n.overlay.Bytes(), peer.overlay.Bytes())
@@ -54,7 +54,7 @@ func (n *Node) Add(peers []*Node) {
 
 func (n *Node) Depth() int {
 	for i, bin := range n.bins {
-		if len(bin) <= depthSaturation {
+		if len(bin) < depthSaturation {
 			return i
 		}
 	}
@@ -62,10 +62,19 @@ func (n *Node) Depth() int {
 	return int(swarm.MaxPO)
 }
 
+func (n *Node) Deepest() int {
+	for i := len(n.bins) - 1; i >= 0; i-- {
+		if len(n.bins[i]) >= 1 {
+			return i
+		}
+	}
+
+	return 0
+}
+
 func (n *Node) Push(addr swarm.Address) error {
 
 	n.trace.Add(n)
-	fmt.Println(n.overlay)
 
 	if n.fail {
 		return ErrNode
@@ -74,12 +83,13 @@ func (n *Node) Push(addr swarm.Address) error {
 	return n.handeFunc(addr, n)
 }
 
-func (n *Node) ClosestNode(addr swarm.Address, skipNodes ...swarm.Address) *Node {
+func (n *Node) ClosestNode(addr swarm.Address, skipNodes ...swarm.Address) (int, *Node) {
 
 	var closest *Node
+	var bin int
 
-	for bin := range n.bins {
-		for _, node := range n.bins[bin] {
+	for b := range n.bins {
+		for _, node := range n.bins[b] {
 
 			skip := false
 			for _, skipNode := range skipNodes {
@@ -92,19 +102,22 @@ func (n *Node) ClosestNode(addr swarm.Address, skipNodes ...swarm.Address) *Node
 				continue
 			}
 
-			if closest == nil {
+			if closest == nil || closer(addr, node.overlay, closest.overlay) {
 				closest = node
-			} else if closer(addr, node.overlay, closest.overlay) {
-				closest = node
+				bin = b
 			}
 		}
 	}
 
 	if closer(addr, n.overlay, closest.overlay) {
-		return n
+		return 256, n
 	}
 
-	return closest
+	return bin, closest
+}
+
+func (n *Node) Addr() swarm.Address {
+	return n.overlay
 }
 
 func closer(a, x, y swarm.Address) bool {

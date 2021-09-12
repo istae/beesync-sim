@@ -2,13 +2,19 @@ package network
 
 import "sync"
 
-type trace struct {
+type Trace struct {
 	nodes []*Node
 	mux   sync.Mutex
 }
 
-func (t *trace) Add(n *Node) {
+func (t *Trace) Add(n *Node) {
 	t.mux.Lock()
 	defer t.mux.Unlock()
 	t.nodes = append(t.nodes, n)
+}
+
+func (t *Trace) Reset() {
+	t.mux.Lock()
+	defer t.mux.Unlock()
+	t.nodes = nil
 }

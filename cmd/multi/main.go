@@ -2,7 +2,6 @@ package main
 
 import (
 	"fmt"
-	"io/ioutil"
 	"math/rand"
 	"os"
 	"runtime/pprof"
@@ -14,7 +13,7 @@ import (
 )
 
 func defaultPushHandleFunc(addr swarm.Address, base *network.Node) error {
-	closest := base.ClosestNode(addr)
+	_, closest := base.ClosestNode(addr)
 	if closest == base {
 		return nil
 	}
@@ -32,25 +31,25 @@ func main() {
 	pprof.StartCPUProfile(f)
 	defer pprof.StopCPUProfile()
 
-	net := network.NewNetwork(100000, network.NodeOptions{
+	t := &network.Trace{}
+
+	net := network.NewNetwork(100000, t, network.NodeOptions{
 		NodeConnections: 50000,
 		FailPercantage:  0,
 		PushHandle:      defaultPushHandleFunc,
 	})
 
-	chunk := network.RandAddress()
-	fmt.Println(chunk)
+	for i := 0; i < 10; i++ {
+		chunk := network.RandAddress()
+		fmt.Println(chunk)
 
-	rndNode := net.RandNode()
+		rndNode := net.RandNode()
 
-	err := rndNode.Push(chunk)
-	if err != nil {
-		fmt.Println(err)
+		err := rndNode.Push(chunk)
+		if err != nil {
+			fmt.Println(err)
+		}
+		t.Reset()
 	}
-
-	fmt.Printf("depth: %d\n", rndNode.Depth())
 	fmt.Printf("in %v\n", time.Since(now))
-
-	ioutil.WriteFile("vis/trace-data.js", []byte(fmt.Sprintf(`trace = '%s'`, net.MarshallTrace())), os.ModePerm)
-	ioutil.WriteFile("vis/network-data.js", []byte(fmt.Sprintf(`network = '%s'`, net.MarshallNetwork())), os.ModePerm)
 }
