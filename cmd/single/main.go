@@ -13,7 +13,7 @@ import (
 	"sim/network"
 )
 
-func defaultPushHandleFunc(addr swarm.Address, base *network.Node) error {
+func defaultPushHandle(addr swarm.Address, base *network.Node) error {
 	_, closest := base.ClosestNode(addr)
 	if closest == base {
 		return nil
@@ -37,7 +37,7 @@ func main() {
 	net := network.NewNetwork(100000, t, network.NodeOptions{
 		NodeConnections: 50000,
 		FailPercantage:  0,
-		PushHandle:      defaultPushHandleFunc,
+		PushHandle:      defaultPushHandle,
 	})
 
 	chunk := network.RandAddress()

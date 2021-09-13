@@ -21,7 +21,6 @@ type Node struct {
 	fail      bool
 	trace     *Trace
 	handeFunc HandleFunc
-	depth     int
 }
 
 func NewNode(t *Trace, h HandleFunc, fail bool) *Node {

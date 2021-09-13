@@ -39,12 +39,11 @@ func NewNetwork(count int, t *Trace, o NodeOptions) *Network {
 	window := count / parallel
 
 	for i := 0; i < parallel; i++ {
+
 		wg.Add(1)
 
 		start := window * i
 		go func(index int, end int) {
-
-			defer wg.Done()
 
 			for i := index; i < end; i++ {
 				end := rand.Intn(len(nodes) - o.NodeConnections)
@@ -55,6 +54,7 @@ func NewNetwork(count int, t *Trace, o NodeOptions) *Network {
 				mux.Unlock()
 			}
 
+			wg.Done()
 		}(start, start+window)
 	}
 

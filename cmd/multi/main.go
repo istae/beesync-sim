@@ -21,6 +21,10 @@ func defaultPushHandleFunc(addr swarm.Address, base *network.Node) error {
 	return closest.Push(addr)
 }
 
+type hop struct {
+	bin []int
+}
+
 func main() {
 
 	now := time.Now()
@@ -33,15 +37,30 @@ func main() {
 
 	t := &network.Trace{}
 
+	hopBins := make([]float32, 10)
+	hopCount := make([]float32, 10)
+
+	var avgHops float32
+
 	net := network.NewNetwork(100000, t, network.NodeOptions{
 		NodeConnections: 50000,
 		FailPercantage:  0,
-		PushHandle:      defaultPushHandleFunc,
+		PushHandle: func(addr swarm.Address, node *network.Node) error {
+
+			bin, closest := node.ClosestNode(addr)
+			if closest == node {
+				return nil
+			}
+
+			hopBins[t.Count()-1] += float32(bin)
+			hopCount[t.Count()-1]++
+
+			return closest.Push(addr)
+		},
 	})
 
-	for i := 0; i < 10; i++ {
+	for i := 0; i < 1000; i++ {
 		chunk := network.RandAddress()
-		fmt.Println(chunk)
 
 		rndNode := net.RandNode()
 
@@ -49,7 +68,18 @@ func main() {
 		if err != nil {
 			fmt.Println(err)
 		}
+
+		avgHops += float32(t.Count()) - 1
 		t.Reset()
 	}
+
+	for i, h := range hopBins {
+		if hopCount[i] > 0 {
+			fmt.Printf("hop %d avg bin %.2f\n", i, h/hopCount[i])
+		}
+	}
+
+	fmt.Printf("avg hops %.2f\n", avgHops/1000)
+
 	fmt.Printf("in %v\n", time.Since(now))
 }

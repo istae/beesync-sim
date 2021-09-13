@@ -18,3 +18,9 @@ func (t *Trace) Reset() {
 	defer t.mux.Unlock()
 	t.nodes = nil
 }
+
+func (t *Trace) Count() int {
+	t.mux.Lock()
+	defer t.mux.Unlock()
+	return len(t.nodes)
+}
