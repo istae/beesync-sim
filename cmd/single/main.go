@@ -49,6 +49,9 @@ func main() {
 		fmt.Println(err)
 	}
 
+	fmt.Printf("depth %d\n", rndNode.Depth())
+	fmt.Printf("deepest %d\n", rndNode.Deepest())
+
 	fmt.Printf("in %v\n", time.Since(now))
 
 	ioutil.WriteFile("vis/trace-data.js", []byte(fmt.Sprintf(`trace = '%s'`, net.MarshallTraceEdges())), os.ModePerm)

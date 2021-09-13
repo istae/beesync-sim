@@ -74,7 +74,7 @@ func (n *Network) RandNode() *Node {
 func nodeBatch(count int, t *Trace, o NodeOptions) []*Node {
 	var ret = make([]*Node, 0, count)
 	for i := 0; i < count; i++ {
-		ret = append(ret, NewNode(t, o.PushHandle, false))
+		ret = append(ret, NewNode(t, o.PushHandle, rand.Float32() < o.FailPercantage))
 	}
 	return ret
 }

@@ -69,7 +69,7 @@ func main() {
 			fmt.Println(err)
 		}
 
-		avgHops += float32(t.Count()) - 1
+		avgHops += float32(t.Count() - 1)
 		t.Reset()
 	}
 
