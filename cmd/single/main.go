@@ -34,15 +34,15 @@ func main() {
 
 	t := &network.Trace{}
 
-	net := network.NewNetwork(100000, t, network.NodeOptions{
-		NodeConnections: 50000,
+	net := network.NewNetwork(500, t, network.NodeOptions{
+		NodeConnections: 499,
 		FailPercantage:  0,
 		PushHandle:      defaultPushHandle,
 	})
 
 	chunk := network.RandAddress()
 
-	rndNode := net.RandNode()
+	rndNode := net.RandNode(false)
 
 	err := rndNode.Push(chunk)
 	if err != nil {

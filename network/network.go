@@ -19,7 +19,7 @@ type Network struct {
 	trace *Trace
 }
 
-type HandleFunc func(swarm.Address, *Node) error
+type HandleFunc func(swarm.Address, *Node) (*Node, error)
 
 type NodeOptions struct {
 	PushHandle      HandleFunc
@@ -35,8 +35,17 @@ func NewNetwork(count int, t *Trace, o NodeOptions) *Network {
 	var mux sync.Mutex
 	var wg sync.WaitGroup
 
-	const parallel = 8
+	if count%10 != 0 {
+		panic("count must be a multiple of 10")
+	}
+
+	const parallel = 10
 	window := count / parallel
+
+	N := len(nodes) - o.NodeConnections
+	if o.NodeConnections == len(nodes) {
+		N = 1
+	}
 
 	for i := 0; i < parallel; i++ {
 
@@ -46,7 +55,7 @@ func NewNetwork(count int, t *Trace, o NodeOptions) *Network {
 		go func(index int, end int) {
 
 			for i := index; i < end; i++ {
-				end := rand.Intn(len(nodes) - o.NodeConnections)
+				end := rand.Intn(N)
 				nodes[i].Add(nodes[end : end+o.NodeConnections])
 
 				mux.Lock()
@@ -67,19 +76,36 @@ func NewNetwork(count int, t *Trace, o NodeOptions) *Network {
 	}
 }
 
-func (n *Network) RandNode() *Node {
-	return n.nodes[rand.Intn(len(n.nodes))]
+func (n *Network) RandNode(fail bool) *Node {
+	for {
+		node := n.nodes[rand.Intn(len(n.nodes))]
+		if fail == node.fail {
+			return node
+		}
+	}
+}
+
+func (n *Network) SetFailureRate(failure float64) {
+	for _, n := range n.nodes {
+		n.SetFailureRate(failure)
+	}
+}
+
+func (net *Network) SetHandleFunc(h HandleFunc) {
+	for _, n := range net.nodes {
+		n.handeFunc = h
+	}
 }
 
 func nodeBatch(count int, t *Trace, o NodeOptions) []*Node {
 	var ret = make([]*Node, 0, count)
 	for i := 0; i < count; i++ {
-		ret = append(ret, NewNode(t, o.PushHandle, rand.Float32() < o.FailPercantage))
+		ret = append(ret, NewNode(t, o.PushHandle))
 	}
 	return ret
 }
 
-func (net *Network) MarshallTraceNode() []byte {
+func (net *Network) MarshallNetwork() []byte {
 
 	type jnode struct {
 		ID    int    `json:"id"`
@@ -88,11 +114,33 @@ func (net *Network) MarshallTraceNode() []byte {
 
 	var j []jnode
 
-	for _, node := range net.trace.nodes {
-		j = append(j, jnode{
-			ID:    net.ids[node.overlay.ByteString()],
-			Label: node.overlay.String()[:prefix],
-		})
+	for _, node := range net.trace.edges {
+
+		f := func(overlay swarm.Address) {
+
+			id := net.ids[overlay.ByteString()]
+
+			skip := false
+			for _, jn := range j {
+
+				if jn.ID == id {
+					skip = true
+					break
+				}
+			}
+
+			if skip {
+				return
+			}
+
+			j = append(j, jnode{
+				ID:    id,
+				Label: overlay.String()[:prefix],
+			})
+		}
+
+		f(node.from.overlay)
+		f(node.to.overlay)
 	}
 
 	b, _ := json.Marshal(j)
@@ -104,21 +152,30 @@ type jTrace struct {
 	To     int    `json:"to"`
 	Arrows string `json:"arrows,omitempty"`
 	Label  string `json:"label,omitempty"`
+	Color  string `json:"color,omitempty"`
 }
 
-func (net *Network) MarshallTraceEdges() []byte {
+func (net *Network) MarshallTraceEdges(chunk swarm.Address) []byte {
 
 	var ret []jTrace
 
-	for i := 1; i < len(net.trace.nodes); i++ {
-		from := net.trace.nodes[i-1]
-		to := net.trace.nodes[i]
+	for i := 0; i < len(net.trace.edges); i++ {
+		from := net.trace.edges[i].from
+		to := net.trace.edges[i].to
+
+		var color = ""
+		if net.trace.edges[i].err {
+			color = "red"
+		}
+
+		po := swarm.Proximity(to.Addr().Bytes(), chunk.Bytes())
 
 		ret = append(ret, jTrace{
 			From:   net.ids[from.overlay.ByteString()],
 			To:     net.ids[to.overlay.ByteString()],
 			Arrows: "to",
-			Label:  fmt.Sprintf("%d (bin %d)", i, swarm.Proximity(from.overlay.Bytes(), to.overlay.Bytes())),
+			Label:  fmt.Sprintf("%d (po %d)", i, po),
+			Color:  color,
 		})
 	}
 

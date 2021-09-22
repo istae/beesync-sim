@@ -12,14 +12,14 @@ import (
 	"sim/network"
 )
 
-func defaultPushHandleFunc(addr swarm.Address, base *network.Node) error {
-	_, closest := base.ClosestNode(addr)
-	if closest == base {
-		return nil
-	}
+// func defaultPushHandleFunc(addr swarm.Address, base *network.Node) error {
+// 	_, closest := base.ClosestNode(addr)
+// 	if closest == base {
+// 		return nil
+// 	}
 
-	return closest.Push(addr)
-}
+// 	return closest.Push(addr)
+// }
 
 type hop struct {
 	bin []int
@@ -45,11 +45,11 @@ func main() {
 	net := network.NewNetwork(100000, t, network.NodeOptions{
 		NodeConnections: 50000,
 		FailPercantage:  0,
-		PushHandle: func(addr swarm.Address, node *network.Node) error {
+		PushHandle: func(addr swarm.Address, node *network.Node) (*network.Node, error) {
 
 			bin, closest := node.ClosestNode(addr)
 			if closest == node {
-				return nil
+				return node, nil
 			}
 
 			hopBins[t.Count()-1] += float32(bin)
@@ -62,9 +62,9 @@ func main() {
 	for i := 0; i < 1000; i++ {
 		chunk := network.RandAddress()
 
-		rndNode := net.RandNode()
+		rndNode := net.RandNode(false)
 
-		err := rndNode.Push(chunk)
+		_, err := rndNode.Push(chunk)
 		if err != nil {
 			fmt.Println(err)
 		}

@@ -23,13 +23,12 @@ type Node struct {
 	handeFunc HandleFunc
 }
 
-func NewNode(t *Trace, h HandleFunc, fail bool) *Node {
+func NewNode(t *Trace, h HandleFunc) *Node {
 	return &Node{
 		overlay:   RandAddress(),
 		bins:      make([][]*Node, swarm.MaxBins),
 		trace:     t,
 		handeFunc: h,
-		fail:      fail,
 	}
 }
 
@@ -39,11 +38,12 @@ func RandAddress() swarm.Address {
 	return swarm.NewAddress(b)
 }
 
+func (n *Node) SetFailureRate(failPercantage float64) {
+	n.fail = rand.Float64() < failPercantage
+}
+
 func (n *Node) Add(peers []*Node) {
 	for _, peer := range peers {
-		if n.Depth() >= depth {
-			return
-		}
 		po := swarm.Proximity(n.overlay.Bytes(), peer.overlay.Bytes())
 		if len(n.bins[po]) < oversaturation && !n.overlay.Equal(peer.overlay) {
 			n.bins[po] = append(n.bins[po], peer)
@@ -61,6 +61,10 @@ func (n *Node) Depth() int {
 	return int(swarm.MaxPO)
 }
 
+func (n *Node) SetHandleFunc(h HandleFunc) {
+	n.handeFunc = h
+}
+
 func (n *Node) Deepest() int {
 	for i := len(n.bins) - 1; i >= 0; i-- {
 		if len(n.bins[i]) >= 1 {
@@ -71,15 +75,17 @@ func (n *Node) Deepest() int {
 	return 0
 }
 
-func (n *Node) Push(addr swarm.Address) error {
+func (n *Node) Prefix() string {
+	return n.Addr().String()[:prefix]
+}
 
-	n.trace.Add(n)
+func (n *Node) Push(ch swarm.Address) (*Node, error) {
 
 	if n.fail {
-		return ErrNode
+		return nil, ErrNode
 	}
 
-	return n.handeFunc(addr, n)
+	return n.handeFunc(ch, n)
 }
 
 func (n *Node) ClosestNode(addr swarm.Address, skipNodes ...swarm.Address) (int, *Node) {
